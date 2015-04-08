@@ -1,0 +1,205 @@
+<link href="../polymer/polymer.html" rel="import">
+<link href="../paper-ripple/paper-ripple.html" rel="import">
+
+<polymer-element name="paper-date-picker1">
+  <template>
+
+  <style>
+    :host {
+      display: inline-block;
+      position: relative;
+      width: 300px;
+    }
+    #container{
+      height: 100%;
+      width: 100%;
+      overflow-x: hidden;
+      overflow-y: hidden;
+      padding: 0px 9px;
+      box-sizing: border-box;
+    }
+    .days{
+      display: flex;
+      flex-wrap: wrap;
+      width: 100%;
+      align-content: stretch;
+      min-height: 210px;
+    }
+    .day{
+      width: calc(14% - 6px);
+      text-align: center;
+      margin: 3px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position:relative;
+      cursor: pointer;
+    }
+    .day span{
+      display: block;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+    }
+    .day:hover > span {
+      background-color: #80CBC4;
+      color: white;
+      border-radius: 100%;
+    }
+    .day.selected span{
+      background-color: #009688 !important;
+      color: white;
+      border-radius: 100%;
+    }
+    .day.current span{
+      background-color: #81D4FA;
+      color: white;
+      border-radius: 100%;
+    }
+    .day.title{
+      padding-top: 0px;
+      padding-bottom: 4px;
+      font-weight: bold;
+      color: rgba(0,0,0,.6);
+      cursor: default;
+    }
+    .day[enabled='false']{
+      pointer-events: none;
+      color: rgba(0,0,0,.3);
+    }
+    h1{
+      text-align: center;
+      font-size: 13px;
+      color: rgba(0,0,0,.8);
+      margin: 0px;
+      padding: 0.67em 0px;
+    }
+  </style>
+    <div id="container">
+      <div class="month">
+        <div layout horizontal justified center>
+          <paper-icon-button icon="chevron-left" on-click={{preMonth}}></paper-icon-button>
+          <h1>{{yearAndMonth}}</h1>
+          <paper-icon-button icon="chevron-right" on-click={{nextMonth}}></paper-icon-button>
+        </div>
+        <div class="days">
+
+        <template repeat="{{name in weekdayNames}}">
+          <div class="day title">{{name}}</div>
+        </template>
+
+        <template repeat="{{day in days}}">
+          <template if="{{!day}}">
+            <div class="day"></div>
+          </template>
+          <template if="{{day}}">
+            <div class="day {{ {selected:day.day==currentDay&&day.month==currentMonth&&day.year==currentYear}| tokenList }} {{{current:day.day==todayDay&&day.month==todayMonth&&day.year==todayYear}| tokenList }}"
+               enabled="{{day.enabled}}"
+               on-click="{{pickDate}}"><span>{{day.day}}</span></div>
+          </template>
+        </template>
+
+      </div>
+      </div>
+    </div>
+
+
+  </template>
+  <script charset="utf-8">
+    Polymer({
+      publish: {
+        date: new Date(),
+        min: new Date(2015,3,8),
+        max: new Date(2100,11,31),
+        locale: 'zh-CN',
+        startDayOfWeek: 1,
+      },
+        today: new Date(),
+        todayYear:0,
+        todayMonth:0,
+        todayDay:0,
+        weekdayNames: [], //
+        intl:{},
+        yearAndMonth:'', //title
+        currentYear : 0, //current year
+        currentMonth : 0, //current month
+        currentDay : 0, //current day
+        days:[], // all days data
+        render: function () {
+          var curYear = this.date.getFullYear();
+          var curMonth = this.date.getMonth();
+          var date = new Date(curYear, curMonth, 1); //current month first day
+          // offset day
+          var startPoint = (date.getDay() - this.startDayOfWeek + 7) % 7;
+          date = new Date(curYear, curMonth+1, 0); //current month last day
+          // current month max day <=31
+          var endPoint = date.getDate();
+          this.days = []; // rest the days
+          // empty datys ,just set the position
+          for(i=0;i<startPoint;i++){
+            this.days.push(undefined);
+          }
+          // normal days
+          for(i=1;i<=endPoint;i++){
+            var thisDate = new Date(curYear, curMonth, i);
+            this.days.push({
+              day: i, //need't the day's suffix
+              month: curMonth,
+              year: curYear,
+              enabled: thisDate >= this.min && thisDate <= this.max
+            });
+          }
+          // show the head
+          this.yearAndMonth = this.intl.yearAndMonth(this.date);
+        },
+        setCurrentDateValues:function() {
+          this.currentYear = this.date.getFullYear();
+          this.currentMonth = this.date.getMonth();
+          this.currentDay = this.date.getDate();
+        },
+        ready: function(){
+          // date format
+          this.intl.weekday = Intl.DateTimeFormat(this.locale, {weekday: 'narrow' }).format; //weekday
+          this.intl.day = Intl.DateTimeFormat(this.locale, {day: 'numeric' }).format; //day
+          this.intl.yearAndMonth = Intl.DateTimeFormat(this.locale, {month: 'long', year: 'numeric' }).format;// year month
+          this.intl.yearMonthDay = Intl.DateTimeFormat(this.locale, {day: 'numeric',month: 'long', year: 'numeric' }).format;// year month day
+
+          // weekday names
+          this.weekdayNames = [];
+          for(var i=this.startDayOfWeek;i<this.startDayOfWeek+7;i++){
+            var date = new Date(2015, 5, i, 0, 0, 0);
+            this.weekdayNames.push(new Intl.DateTimeFormat(this.locale, {weekday:'narrow'}).format(date));
+          }
+
+          // today
+          this.todayYear = this.today.getFullYear();
+          this.todayMonth = this.today.getMonth();
+          this.todayDay = this.today.getDate();
+
+          // render days
+          this.render();
+
+          // select today
+          this.setCurrentDateValues();
+        },
+        pickDate : function (event, detail, sender) {
+          var data = sender.templateInstance.model.day;
+          var day = data.day;
+          var month = data.month;
+          var year = data.year;
+          this.date = new Date(year, month, day);
+          this.setCurrentDateValues();
+          console.log('choosed：'+this.currentYear+this.currentMonth+this.currentDay);
+        },
+        preMonth : function(){
+          this.date = new Date(this.date.getFullYear(),this.date.getMonth()-1,this.date.getDate());
+          this.render();
+        },
+        nextMonth: function () {
+          this.date = new Date(this.date.getFullYear(),this.date.getMonth()+1,this.date.getDate());
+          this.render();
+        }
+    })
+  </script>
+<polymer-element>
